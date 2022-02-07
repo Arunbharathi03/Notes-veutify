@@ -28,6 +28,10 @@ export default {
             const index = state.list.findIndex(note => note.uuid === payload.uuid) 
             Object.assign(state.list[index], {...payload})
         },
+        CHANGE_DESCRIPTION (state, payload) {
+            const index = state.list.findIndex(note => note.uuid === payload.uuid) 
+            Object.assign(state.list[index], {...payload})
+        },
         DELETE_NOTE (state, payload) {
             const index = state.list.findIndex(note => note.uuid === payload)
             state.list.splice(index, 1)
@@ -74,6 +78,14 @@ export default {
             .then(response => {
                 const data = response.data.data
                 context.commit('CHANGE_TITLE', data)
+            })
+            .catch(error => console.log(error))
+        },
+        changeDescription (context, payload) {
+            axios.patch(`/notes/${payload.uuid}`, payload)
+            .then(response => {
+                const data = response.data.data
+                context.commit('CHANGE_DESCRIPTION', data)
             })
             .catch(error => console.log(error))
         },

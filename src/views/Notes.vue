@@ -10,7 +10,7 @@
                     </v-list-item>
                     <v-list-item>
                         <v-list-item-content class="px-2">
-                            <v-text-field placeholder="Search" ></v-text-field>
+                            <v-text-field placeholder="Search" v-model= "search_text" @keyup="local_search_mode"></v-text-field>
                         </v-list-item-content>
                     </v-list-item>
 
@@ -21,27 +21,64 @@
                             </v-list-item-title>
                         </template>
 
-                        <v-skeleton-loader v-if="loading" class="mx-auto" max-width="300" :loading="loading"  type="card"></v-skeleton-loader>
+                        <!--search mode-->
 
-                        <v-card v-else elevation="3" height="70px" width="350px" class="d-flex px-4 mx-auto card mb-4 mt-4" v-for="note in notes_list" :key="note.uuid"  @click="local_preview(note.uuid)">
-                            <v-card-text>
-                                <v-row class="d-flex justify-space-between align-center">
-                                    <div class="pb-4" @click.stop>
-                                        <v-checkbox
-                                            @change="local_change_status(note)" 
-                                            v-model="note.completed" 
-                                            color="success"
-                                            hide-details>
-                                        </v-checkbox>
-                                    </div>  
-                                    <v-card-title><span :class="[note.completed ? 'completed': '','title_text']">{{ local_truncated_title(note.title, 13) }}</span>
-                                    </v-card-title>
-                                    <div >
-                                        <v-icon class="delete_icon" tag="delete" size="20" @click.stop="local_delete(note)">delete</v-icon>
-                                    </div>
-                                </v-row>
-                            </v-card-text>
-                        </v-card>
+                        <!-- <v-skeleton-loader v-if="loading" class="mx-auto" max-width="300" :loading="loading"  type="list-item-two-line"></v-skeleton-loader> -->
+
+                        <div v-if="search_mode">
+                            <div class="d-flex align-center">
+                                <div>
+                                    <p class="px-12 pt-4">Search results</p>
+                                </div>
+                                <div @click="local_cancel_search">
+                                    <v-icon small color="blue">cancel</v-icon>
+                                </div>
+                            </div>
+                            <v-card  elevation="3" height="70px" width="350px" class="d-flex px-4 mx-auto card mb-4 mt-4"  @click="local_preview(search_result.uuid)">
+                                <v-card-text>
+                                    <v-row class="d-flex justify-space-between align-center">
+                                        <div class="pb-4" @click.stop>
+                                            <v-checkbox
+                                                @change="local_change_status(search_result)" 
+                                                v-model="search_result.completed" 
+                                                color="success"
+                                                hide-details>
+                                            </v-checkbox>
+                                        </div>  
+                                        <v-card-title><span :class="[search_result.completed ? 'completed': '','title_text']">{{ local_truncated_title(search_result.title, 13) }}</span>
+                                        </v-card-title>
+                                        <div >
+                                            <v-icon class="delete_icon" tag="delete" size="20" @click.stop="local_delete(search_result)">delete</v-icon>
+                                        </div>
+                                    </v-row>
+                                </v-card-text>
+                            </v-card>    
+                        </div>
+
+                        <!--normal mode -->
+                        <div v-else>
+                            <v-skeleton-loader v-if="loading" class="mx-auto" max-width="300" :loading="loading"  type="list-item-two-line"></v-skeleton-loader>
+
+                            <v-card v-else elevation="3" height="70px" width="350px" class="d-flex px-4 mx-auto card mb-4 mt-4" v-for="note in notes_list" :key="note.uuid"  @click="local_preview(note.uuid)">
+                                <v-card-text>
+                                    <v-row class="d-flex justify-space-between align-center">
+                                        <div class="pb-4" @click.stop>
+                                            <v-checkbox
+                                                @change="local_change_status(note)" 
+                                                v-model="note.completed" 
+                                                color="success"
+                                                hide-details>
+                                            </v-checkbox>
+                                        </div>  
+                                        <v-card-title><span :class="[note.completed ? 'completed': '','title_text']">{{ local_truncated_title(note.title, 12) }}</span>
+                                        </v-card-title>
+                                        <div >
+                                            <v-icon class="delete_icon" tag="delete" size="20" @click.stop="local_delete(note)">delete</v-icon>
+                                        </div>
+                                    </v-row>
+                                </v-card-text>
+                            </v-card>
+                        </div>
                     </v-list-group>
                 </v-list>
             </v-navigation-drawer> 
@@ -117,6 +154,9 @@ export default {
     data () {
         return {
             loading: '',
+            search_mode: false,
+            search_text: '',
+            search_result: {},
             deleted: false,
             created: false,
             title: '',
@@ -170,13 +210,21 @@ export default {
             return title + "...";
             }
         },
-        
+        local_search_mode () {
+            if(this.search_text !== '') {
+                this.search_mode = true
+                const searchItem = this.notes.find(note => note.title.toLowerCase().includes(this.search_text.toLowerCase()))
+                this.search_result = {...searchItem}
+            } else {
+                this.search_mode = false
+            }
+        },
+        local_cancel_search () {
+            this.search_mode = false
+            this.search_text = ''
+        },
         local_create_mode () {
             this.create_mode = true
-            
-            if (this.$refs.form.validate()) {
-                this.is_disabled = false
-            } else this.is_disabled = true
         },
         local_cancel_create () {
             this.create_mode = false
@@ -228,21 +276,24 @@ export default {
                     this.$router.push({name: "note", params: {uuid: this.notes[1].uuid}})
                     this.deleted = true
                     this.note_delete(note.uuid)
+                }   
+                else if ((note.uuid === this.notes[0].uuid) && (this.notes.length === 1)) { 
+                        this.$router.push({path: '/create-note'})
+                        this.deleted = true
+                        this.note_delete(note.uuid)
                 }
-                else if (this.notes.length >= 2) {
+                else {
                     this.$router.push({name: "note", params: {uuid: this.notes[0].uuid}})
                     this.deleted = true
                     this.note_delete(note.uuid)
-                
-                } else {
-                    this.$router.push({path: '/create-note'})
-                    this.deleted = true
-                
                 }
+
             } 
         },
 
         local_preview (id) {
+            this.search_text = ''
+            this.search_mode = false
             if (id !== this.$route.params.uuid) {
                 this.$router.push({ name: 'note', params: {uuid: id}})
             }
@@ -271,11 +322,11 @@ export default {
     .title_text {
         font-size: 1.2rem;
         font-weight: bold;
-        text-transform: capitalize;
         padding: 0rem 2rem;
     }
     .completed {
         text-decoration-line: line-through;
+       
     }
     .delete_icon:hover {
         color: rgb(231, 112, 112);
